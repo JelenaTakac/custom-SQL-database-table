@@ -7,34 +7,30 @@
   Author URI: https://www.udemy.com/user/bradschiff/
 */
 
-if( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
+if (!defined('ABSPATH')) exit; // Exit if accessed directly
 require_once plugin_dir_path(__FILE__) . 'inc/generatePet.php';
 
-class PetAdoptionTablePlugin {
-    private $charset;
-    private $tablename;
+define('NEWDATABASETABLEPATH', plugin_dir_path(__FILE__));
 
-    function __construct() {
+class PetAdoptionTablePlugin
+{
+    function __construct()
+    {
         global $wpdb;
         $this->charset = $wpdb->get_charset_collate();
         $this->tablename = $wpdb->prefix . "pets";
 
-
         add_action('activate_new-database-table/new-database-table.php', array($this, 'onActivate'));
-        // add_action('admin_head', array($this, 'onAdminRefresh')); // this onAdminRefresh function will run any time you reload or refresh the admin side of WordpPress (na refres se insertuju redovi u tabeli)
-        // add_action('admin_head', array($this, 'populateFast')); // this populateFast function will run on reload or refresh the amin side of WordpPress (i u tom trenutku ce ubaciti novih 1000000 redova u tabelu. Kada se jednom refresuje admin, odmah zakomentarisati ovaj red koda sa ovom populateFast funckijom jer ne zelimo vise redova)
-        
-        add_action('admin_post_createpet', array($this, 'createPet')); // WordPress will now call this function if a user is logged in does matter which role.
-        add_action('admin_post_nopriv_createpet', array($this, 'createPet')); // WordPress will now call this function if a user isn't logged in at all.
-
-        add_action('admin_post_deletepet', array($this, 'deletePet')); 
+        //add_action('admin_head', array($this, 'populateFast'));
+        add_action('admin_post_createpet', array($this, 'createPet'));
+        add_action('admin_post_nopriv_createpet', array($this, 'createPet'));
+        add_action('admin_post_deletepet', array($this, 'deletePet'));
         add_action('admin_post_nopriv_deletepet', array($this, 'deletePet'));
-
         add_action('wp_enqueue_scripts', array($this, 'loadAssets'));
-        add_filter('template_include', array($this, 'loadTemplate'), 99);
     }
 
-    function deletePet() {
+    function deletePet()
+    {
         if (current_user_can('administrator')) {
             $id = sanitize_text_field($_POST['idtodelete']);
             global $wpdb;
@@ -46,8 +42,8 @@ class PetAdoptionTablePlugin {
         exit;
     }
 
-    // We want to check and create a new Pet jos for administrator!!
-    function createPet() {
+    function createPet()
+    {
         if (current_user_can('administrator')) {
             $pet = generatePet();
             $pet['petname'] = sanitize_text_field($_POST['incomingpetname']);
@@ -60,63 +56,92 @@ class PetAdoptionTablePlugin {
         exit;
     }
 
-    function onActivate() {
-        // Require a WordPress system file that will indeed make DB Delta available  - way to create custom table
+    function onActivate()
+    {
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        // If it's run in the future it isn't going to wipe out of table. We're not going to lose any data. It won't delete the table and then recreate it a second time.
-        // delta means - change. If we ever deactivate out plugin and then reactie it again WordPress is smart enough to compare the difference between
         dbDelta("CREATE TABLE $this->tablename (
-            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            birthyear smallint(5) NOT NULL DEFAULT 0,
-            petweight smallint(5) NOT NULL DEFAULT 0,
-            favfood varchar(60) NOT NULL DEFAULT '',
-            favhobby varchar(60) NOT NULL DEFAULT '',
-            favcolor varchar(60) NOT NULL DEFAULT '',
-            petname varchar(60) NOT NULL DEFAULT '',
-            species varchar(60) NOT NULL DEFAULT '',
-            PRIMARY KEY  (id)
-        ) $this->charset;");
+      id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+      birthyear smallint(5) NOT NULL DEFAULT 0,
+      petweight smallint(5) NOT NULL DEFAULT 0,
+      favfood varchar(60) NOT NULL DEFAULT '',
+      favhobby varchar(60) NOT NULL DEFAULT '',
+      favcolor varchar(60) NOT NULL DEFAULT '',
+      petname varchar(60) NOT NULL DEFAULT '',
+      species varchar(60) NOT NULL DEFAULT '',
+      PRIMARY KEY  (id)
+    ) $this->charset;");
     }
 
-    function onAdminRefresh() {
+    function onAdminRefresh()
+    {
         global $wpdb;
         $wpdb->insert($this->tablename, generatePet());
     }
 
-    function loadAssets() {
+    function loadAssets()
+    {
         if (is_page('pet-adoption')) {
-        wp_enqueue_style('petadoptioncss', plugin_dir_url(__FILE__) . 'pet-adoption.css');
+            wp_enqueue_style('petadoptioncss', plugin_dir_url(__FILE__) . 'pet-adoption.css');
         }
     }
 
-    function loadTemplate($template) {
+    function loadTemplate($template)
+    {
         if (is_page('pet-adoption')) {
-        return plugin_dir_path(__FILE__) . 'inc/template-pets.php';
+            return plugin_dir_path(__FILE__) . 'inc/template-pets.php';
         }
         return $template;
     }
 
-    function populateFast() {
+    function populateFast()
+    {
         $query = "INSERT INTO $this->tablename (`species`, `birthyear`, `petweight`, `favfood`, `favhobby`, `favcolor`, `petname`) VALUES ";
         $numberofpets = 100000;
         for ($i = 0; $i < $numberofpets; $i++) {
-        $pet = generatePet();
-        $query .= "('{$pet['species']}', {$pet['birthyear']}, {$pet['petweight']}, '{$pet['favfood']}', '{$pet['favhobby']}', '{$pet['favcolor']}', '{$pet['petname']}')";
-        if ($i != $numberofpets - 1) {
-            $query .= ", ";
-        }
+            $pet = generatePet();
+            $query .= "('{$pet['species']}', {$pet['birthyear']}, {$pet['petweight']}, '{$pet['favfood']}', '{$pet['favhobby']}', '{$pet['favcolor']}', '{$pet['petname']}')";
+            if ($i != $numberofpets - 1) {
+                $query .= ", ";
+            }
         }
         /*
-        Never use query directly like this without using $wpdb->prepare in the
-        real world. I'm only using it this way here because the values I'm 
-        inserting are coming fromy my innocent pet generator function so I
-        know they are not malicious, and I simply want this example script
-        to execute as quickly as possible and not use too much memory.
-        */
+    Never use query directly like this without using $wpdb->prepare in the
+    real world. I'm only using it this way here because the values I'm 
+    inserting are coming fromy my innocent pet generator function so I
+    know they are not malicious, and I simply want this example script
+    to execute as quickly as possible and not use too much memory.
+    */
         global $wpdb;
         $wpdb->query($query);
     }
-
 }
 
 $petAdoptionTablePlugin = new PetAdoptionTablePlugin();
+
+class OurPluginPlaceholderBlock
+{
+    function __construct($name)
+    {
+        $this->name = $name;
+        add_action('init', [$this, 'onInit']);
+    }
+
+    function ourRenderCallback($attributes, $content)
+    {
+        ob_start();
+        require plugin_dir_path(__FILE__) . 'our-blocks/' . $this->name . '.php';
+        return ob_get_clean();
+    }
+
+    function onInit()
+    {
+        wp_register_script($this->name, plugin_dir_url(__FILE__) . "/our-blocks/{$this->name}.js", array('wp-blocks', 'wp-editor'));
+
+        register_block_type("ourdatabaseplugin/{$this->name}", array(
+            'editor_script' => $this->name,
+            'render_callback' => [$this, 'ourRenderCallback']
+        ));
+    }
+}
+
+new OurPluginPlaceholderBlock("petslist");

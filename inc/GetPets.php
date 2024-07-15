@@ -1,12 +1,9 @@
-<?php 
+<?php
 
-class GetPets {
-    public $pets;
-    public $count;
-    private $args;
-    private $placeholders;
-
-    function __construct() {
+class GetPets
+{
+    function __construct()
+    {
         global $wpdb;
         $tablename = $wpdb->prefix . 'pets';
 
@@ -19,12 +16,12 @@ class GetPets {
         $countQuery .= $this->createWhereText();
         $query .= " LIMIT 100";
 
-        // $this->pets = $wpdb->get_results($wpdb->prepare($query, $this->args)); Ovako na kraju odradi. Nepotreban je $this->placeholders. Mozemo preko args sve saznati
         $this->count = $wpdb->get_var($wpdb->prepare($countQuery, $this->placeholders));
         $this->pets = $wpdb->get_results($wpdb->prepare($query, $this->placeholders));
     }
 
-    function getArgs() {
+    function getArgs()
+    {
         $temp = [];
 
         if (isset($_GET['favcolor'])) $temp['favcolor'] = sanitize_text_field($_GET['favcolor']);
@@ -39,13 +36,15 @@ class GetPets {
         return $temp;
     }
 
-    function createPlaceholders() { // we don't property name, we only need actual value (array_map, second argument is array that we want to work with, first argument is function you want to run each time for every item)
-        return array_map(function($x) {
+    function createPlaceholders()
+    {
+        return array_map(function ($x) {
             return $x;
         }, $this->args);
     }
 
-    function createWhereText() {
+    function createWhereText()
+    {
         $whereQuery = "";
 
         if (count($this->args)) {
@@ -53,9 +52,9 @@ class GetPets {
         }
 
         $currentPosition = 0;
-        foreach($this->args as $index => $item) {
+        foreach ($this->args as $index => $item) {
             $whereQuery .= $this->specificQuery($index);
-            if ($currentPosition != count($this->args) -1) {
+            if ($currentPosition != count($this->args) - 1) {
                 $whereQuery .= " AND ";
             }
             $currentPosition++;
@@ -64,8 +63,9 @@ class GetPets {
         return $whereQuery;
     }
 
-    function specificQuery($index) {
-        switch($index) {
+    function specificQuery($index)
+    {
+        switch ($index) {
             case "minweight":
                 return "petweight >= %d";
             case "maxweight":
@@ -75,10 +75,7 @@ class GetPets {
             case "maxyear":
                 return "birthyear <= %d";
             default:
-                return $index . " = %s"; // species, favcolor, favhobby
+                return $index . " = %s";
         }
     }
-
 }
-
-?>
