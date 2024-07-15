@@ -11,6 +11,9 @@ if( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 require_once plugin_dir_path(__FILE__) . 'inc/generatePet.php';
 
 class PetAdoptionTablePlugin {
+    private $charset;
+    private $tablename;
+
     function __construct() {
         global $wpdb;
         $this->charset = $wpdb->get_charset_collate();
@@ -20,8 +23,41 @@ class PetAdoptionTablePlugin {
         add_action('activate_new-database-table/new-database-table.php', array($this, 'onActivate'));
         // add_action('admin_head', array($this, 'onAdminRefresh')); // this onAdminRefresh function will run any time you reload or refresh the admin side of WordpPress (na refres se insertuju redovi u tabeli)
         // add_action('admin_head', array($this, 'populateFast')); // this populateFast function will run on reload or refresh the amin side of WordpPress (i u tom trenutku ce ubaciti novih 1000000 redova u tabelu. Kada se jednom refresuje admin, odmah zakomentarisati ovaj red koda sa ovom populateFast funckijom jer ne zelimo vise redova)
+        
+        add_action('admin_post_createpet', array($this, 'createPet')); // WordPress will now call this function if a user is logged in does matter which role.
+        add_action('admin_post_nopriv_createpet', array($this, 'createPet')); // WordPress will now call this function if a user isn't logged in at all.
+
+        add_action('admin_post_deletepet', array($this, 'deletePet')); 
+        add_action('admin_post_nopriv_deletepet', array($this, 'deletePet'));
+
         add_action('wp_enqueue_scripts', array($this, 'loadAssets'));
         add_filter('template_include', array($this, 'loadTemplate'), 99);
+    }
+
+    function deletePet() {
+        if (current_user_can('administrator')) {
+            $id = sanitize_text_field($_POST['idtodelete']);
+            global $wpdb;
+            $wpdb->delete($this->tablename, array('id' => $id));
+            wp_safe_redirect(site_url('/pet-adoption'));
+        } else {
+            wp_safe_redirect(site_url());
+        }
+        exit;
+    }
+
+    // We want to check and create a new Pet jos for administrator!!
+    function createPet() {
+        if (current_user_can('administrator')) {
+            $pet = generatePet();
+            $pet['petname'] = sanitize_text_field($_POST['incomingpetname']);
+            global $wpdb;
+            $wpdb->insert($this->tablename, $pet);
+            wp_safe_redirect(site_url('/pet-adoption'));
+        } else {
+            wp_safe_redirect(site_url());
+        }
+        exit;
     }
 
     function onActivate() {
